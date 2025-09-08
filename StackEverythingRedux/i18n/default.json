@@ -7,5 +7,7 @@
     "config.DefaultShopAmount.tooltip": "The default amount when you Shift+RightClick in a Shop menu",
     "config.EnableStackSplitRedux.name": "Enable Split Redux",
     "config.EnableStackSplitRedux.tooltip": "Enable Split Redux functionalities. Uncheck this box if you are experiencing any issue",
-    "ui.stacksplitmenu.title": "Select Amount"
+    "ui.stacksplitmenu.title": "Select Amount",
+    "config.EnableTackleSplit.name": "Enable Tackle Stacking",
+    "config.EnableTackleSplit.tooltip": "If enabled, fishing tackle can be stacked and their durability will be shared across the stack."
 }

@@ -9,6 +9,7 @@ namespace StackEverythingRedux
         public int MaxStackingNumber { get; set; } = 999;
         public int DefaultCraftingAmount { get; set; } = 1;
         public int DefaultShopAmount { get; set; } = 5;
+        public bool EnableTackleSplit { get; set; } = true;
         public bool DebuggingMode { get; set; } = false;
     }
 

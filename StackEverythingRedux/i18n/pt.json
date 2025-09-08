@@ -7,5 +7,7 @@
     "config.DefaultShopAmount.tooltip": "A quantidade padrão quando você usa Shift+clique direito em um menu de loja",
     "config.EnableStackSplitRedux.name": "Ativar Split Redux",
     "config.EnableStackSplitRedux.tooltip": "Ativar funcionalidades do Split Redux. Desmarque esta caixa se você estiver com algum problema.",
-    "ui.stacksplitmenu.title": "Selecione a quantidade"
+    "ui.stacksplitmenu.title": "Selecione a quantidade",
+    "config.EnableTackleSplit.name": "Ativar Stack de Iscas",
+    "config.EnableTackleSplit.tooltip": "Se ativado, iscas de pesca podem ser empilhados e sua durabilidade será compartilhada na pilha."
 }

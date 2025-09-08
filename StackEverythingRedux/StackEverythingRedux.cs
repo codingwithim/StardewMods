@@ -1,17 +1,14 @@
+using System.Reflection;
 using HarmonyLib;
 using StackEverythingRedux.MenuHandlers;
 using StackEverythingRedux.MenuHandlers.GameMenuHandlers;
 using StackEverythingRedux.MenuHandlers.ShopMenuHandlers;
+using StackEverythingRedux.Models;
 using StackEverythingRedux.Network;
-using StackEverythingRedux.Patches;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
-using StardewValley.Objects;
-using StardewValley.Tools;
-using System.Reflection;
-using SObject = StardewValley.Object;
 
 namespace StackEverythingRedux
 {
@@ -19,10 +16,10 @@ namespace StackEverythingRedux
     {
         #region Internal Properties
         internal static Mod Instance;
+        internal static ModConfig Config;
+        internal static Harmony Harmony;
         internal static IManifest Manifest => Instance.ModManifest;
-        internal static Harmony Harmony => new(Manifest.UniqueID);
         internal static IModHelper ModHelper => Instance.Helper;
-        internal static ModConfig Config => ModHelper.ReadConfig<ModConfig>();
         internal static ITranslationHelper I18n => ModHelper.Translation;
         internal static IReflectionHelper Reflection => ModHelper.Reflection;
         internal static IInputHelper Input => ModHelper.Input;
@@ -43,23 +40,11 @@ namespace StackEverythingRedux
         {
             Instance = this;
 
-            PatchHarmony();
+            Config = ModHelper.ReadConfig<ModConfig>();
+            Harmony = new Harmony(Manifest.UniqueID);
+            Harmony.PatchAll();
             PrepareMapping();
             RegisterEvents();
-        }
-
-        private static void PatchHarmony()
-        {
-            Patch(nameof(SObject.maximumStackSize), typeof(Furniture), typeof(MaximumStackSizePatches));
-            Patch(nameof(SObject.maximumStackSize), typeof(Wallpaper), typeof(MaximumStackSizePatches));
-            Patch(nameof(SObject.maximumStackSize), typeof(SObject), typeof(MaximumStackSizePatches));
-
-            Patch(nameof(Utility.tryToPlaceItem), typeof(Utility), typeof(TryToPlaceItemPatches));
-            Patch(nameof(Item.canStackWith), typeof(Item), typeof(CanStackWithPatches));
-            Patch(nameof(Tool.attach), typeof(Tool), typeof(AttachPatches));
-
-            Patch("removeQueuedFurniture", typeof(GameLocation), typeof(RemoveQueuedFurniturePatches));
-            Patch("doDoneFishing", typeof(FishingRod), typeof(DoDoneFishingPatches));
         }
 
         public static void PrepareMapping()
@@ -177,7 +162,7 @@ namespace StackEverythingRedux
                 // and the activeClickableMenu will not be what it was before.
                 if (CurrentMenuHandler?.IsCorrectMenuType(Game1.activeClickableMenu) == true)
                 {
-                    CurrentMenuHandler?.Open(Game1.activeClickableMenu);
+                    _ = (CurrentMenuHandler?.Open(Game1.activeClickableMenu));
                 }
                 else
                 {
@@ -190,7 +175,12 @@ namespace StackEverythingRedux
 
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
-            GenericModConfigMenuIntegration.AddConfig();
+            GenericModConfigMenuIntegration.AddConfig(
+               Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu"),
+               ModManifest,
+               Helper,
+               Config
+            );
             InterceptOtherMods();
         }
 
@@ -250,7 +240,7 @@ namespace StackEverythingRedux
                     Log.Trace($"Menu {MenuToHandle} ran away while we're prepping!");
                     return;
                 }
-                CurrentMenuHandler.Open(MenuToHandle);
+                _ = CurrentMenuHandler.Open(MenuToHandle);
                 SubscribeHandlerEvents();
             }
         }
