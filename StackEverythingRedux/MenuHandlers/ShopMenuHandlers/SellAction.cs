@@ -84,14 +84,39 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
             // This procedure is copied/adapted from game code
             // StardewValley.Menus.ShopMenu.receiveLeftClick
 
+            if (NativeShopMenu is null)
+            {
+                return;
+            }
+
             // Might want to cap this ...
             int coins = (amount / 8) + 2;  // scale of "1/8" is from game code
 
-            StardewModdingAPI.IReflectedField<List<TemporaryAnimatedSprite>> animationsField = StackEverythingRedux.Reflection.GetField<List<TemporaryAnimatedSprite>>(NativeShopMenu, "animations");
-            List<TemporaryAnimatedSprite> animations = animationsField.GetValue();
+            StardewModdingAPI.IReflectedField<object> animationsField = StackEverythingRedux.Reflection.GetField<object>(NativeShopMenu, "animations");
+            object animationsObj = animationsField.GetValue();
+
+            void AddAnimation(TemporaryAnimatedSprite sprite)
+            {
+                switch (animationsObj)
+                {
+                    case TemporaryAnimatedSpriteList list:
+                        list.Add(sprite);
+                        break;
+
+                    case IList<TemporaryAnimatedSprite> ilist:
+                        ilist.Add(sprite);
+                        break;
+
+                    default:
+                        Log.Warn(
+                            $"ShopMenu.animations unexpected type: {animationsObj?.GetType().FullName ?? "null"}; skipping animation."
+                        );
+                        _ = Game1.playSound("purchase");
+                        break;
+                }
+            }
 
             Vector2 snappedPosition = InvMenu.snapToClickableComponent(clickLocation.X, clickLocation.Y);
-
             Vector2 anim_pos = snappedPosition + new Vector2(HALF_TILE, HALF_TILE);
 
             Point startingPoint = new((int)snappedPosition.X + HALF_TILE, (int)snappedPosition.Y + HALF_TILE);
@@ -107,7 +132,7 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
 
             for (int j = 0; j < coins; j++)
             {
-                animations.Add(
+                AddAnimation(
                     new TemporaryAnimatedSprite(
                         textureName: Game1.debrisSpriteSheetName,
                         sourceRect: new Rectangle(Game1.random.Next(2) * SMALL_TILE, FULL_TILE, SMALL_TILE, SMALL_TILE),
@@ -117,7 +142,7 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
                         position: anim_pos,
                         flicker: false,
                         flipped: false
-                        )
+                    )
                     {
                         alphaFade = 0.025f,
                         motion = new Vector2(Game1.random.Next(-3, 4), -4f),
@@ -125,8 +150,9 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
                         delayBeforeAnimationStart = j * 25,
                         scale = 2f
                     }
-                    );
-                animations.Add(
+                );
+
+                AddAnimation(
                     new TemporaryAnimatedSprite(
                         textureName: Game1.debrisSpriteSheetName,
                         sourceRect: new Rectangle(Game1.random.Next(2) * SMALL_TILE, FULL_TILE, SMALL_TILE, SMALL_TILE),
@@ -136,7 +162,7 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
                         position: anim_pos,
                         flicker: false,
                         flipped: false
-                        )
+                    )
                     {
                         alphaFade = 0.025f,
                         motion = motion2,
@@ -144,11 +170,8 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
                         delayBeforeAnimationStart = j * 50,
                         scale = 4f
                     }
-                    );
-            }  // end_for j
-
-            // Not sure if this is needed, but just to be safe
-            animationsField.SetValue(animations);
+                );
+            }
         }
 
         // TODO: verify this is correct and Item.sellToShopPrice doesn't do the same thing

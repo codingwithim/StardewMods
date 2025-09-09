@@ -11,15 +11,31 @@ namespace StackEverythingRedux.Patches
         [HarmonyPatch(nameof(Item.canStackWith), new[] { typeof(ISalable) })]
         public static bool Prefix(Item __instance, ref bool __result, ISalable other)
         {
+            if (__instance is null || other is null)
+            {
+                return true;
+            }
 
-            if ((__instance is StorageFurniture dresser1 && dresser1.heldItems != null && dresser1.heldItems.Count != 0)
-             || (other is StorageFurniture dresser2 && dresser2.heldItems != null && dresser2.heldItems.Count != 0))
+            if ((__instance is StorageFurniture dresser1 && dresser1.heldItems is { Count: > 0 })
+             || (other is StorageFurniture dresser2 && dresser2.heldItems is { Count: > 0 }))
+            {
+                __result = false;
+                return false;
+            }
+
+            if (IsNoStackQualifiedId(__instance) || IsNoStackQualifiedId(other))
             {
                 __result = false;
                 return false;
             }
 
             return true;
+        }
+
+        private static bool IsNoStackQualifiedId(ISalable f)
+        {
+            HashSet<string> set = StaticConfig.NoStackQualifiedIds;
+            return f is not null && set is not null && set.Contains(f.QualifiedItemId);
         }
     }
 }

@@ -31,5 +31,11 @@ namespace StackEverythingRedux
 
         /// <summary>The background color of the highlighted text.</summary>
         internal static readonly Color HighlightColor = Color.Blue;
+
+        /// <summary>Items that should not stack.</summary>
+        internal static HashSet<string> NoStackQualifiedIds { get; set; } =
+        [
+            "(F)FreeCactus"
+        ];
     }
 }

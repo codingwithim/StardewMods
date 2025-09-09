@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using StackEverythingRedux.UI;
+using StardewModdingAPI;
+using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
-using System.Diagnostics;
 using SFarmer = StardewValley.Farmer;
 
 namespace StackEverythingRedux.MenuHandlers
@@ -16,6 +18,9 @@ namespace StackEverythingRedux.MenuHandlers
 
         /// <summary>If the callbacks have been hooked yet so we don't do it unnecessarily.</summary>
         private bool CallbacksHooked = false;
+
+        /// <summary>Keeps a reference to the menu instance where callbacks were hooked.</summary>
+        private ItemGrabMenu HookedMenu = null;
 
         /// <summary>Native item select callback.</summary>
         private ItemGrabMenu.behaviorOnItemSelect OriginalItemSelectCallback;
@@ -32,50 +37,45 @@ namespace StackEverythingRedux.MenuHandlers
         /// <summary>The total number of items in the hovered stack.</summary>
         private int TotalItems = 0;
 
-        /// <summary>The currently held item (in the Native Menu).</summary>
-        private Item HeldItem => NativeMenu.heldItem;
+        /// <summary>Convenience: the currently held item (in the Native Menu).</summary>
+        private Item HeldItem => NativeMenu?.heldItem;
 
-
-        /// <summary>Null constructor.</summary>
         public ItemGrabMenuHandler()
             : base()
         {
             // We're handling the inventory in such a way that we don't need the generic handler.
             HasInventory = false;
+
+            // Auto-unhook if the active menu changes while split is open or hooks are active.
+            StackEverythingRedux.Instance.Helper.Events.Display.MenuChanged += OnMenuChanged;
         }
 
         /// <summary>Allows derived handlers to provide additional checks before opening the split menu.</summary>
-        /// <returns>True if it can be opened.</returns>
         protected override bool CanOpenSplitMenu()
         {
-            bool canOpen = NativeMenu.allowRightClick;
+            bool canOpen = NativeMenu?.allowRightClick == true;
             return canOpen && base.CanOpenSplitMenu();
         }
 
         /// <summary>Tells the handler to close the split menu.</summary>
         public override void CloseSplitMenu()
         {
-            base.CloseSplitMenu();
+            // Always cleanup callbacks even if base already closed the split.
+            RestoreNativeCallbacks();
 
-            if (CallbacksHooked)
-            {
-                Log.Error($"[{nameof(ItemGrabMenuHandler)}.{nameof(CloseSplitMenu)}] Callbacks shouldn't still be hooked on closing!");
-            }
+            base.CloseSplitMenu();
         }
 
         /// <summary>Called when the current handler loses focus when the split menu is open, allowing it to cancel the operation or run the default behaviour.</summary>
-        /// <returns>If the input was handled or consumed.</returns>
         protected override EInputHandled CancelMove()
         {
-            // Not hovering above anything so pass-through (??)
+            // Not hovering above anything so pass-through
             if (HoverItem is null)
             {
                 return EInputHandled.NotHandled;
             }
 
-            // If being cancelled from a click else-where then the keyboad state won't have shift held (unless they're still holding it),
-            // in which case the default right-click behavior will run and only a single item will get moved instead of half the stack.
-            // Therefore we must make sure it's still using our callback so we can correct the amount.
+            // Ensure callbacks are active so we keep control of the split amount.
             _ = HookCallbacks();
 
             // Run the regular command
@@ -88,7 +88,6 @@ namespace StackEverythingRedux.MenuHandlers
         }
 
         /// <summary>Main event that derived handlers use to setup necessary hooks and other things needed to take over how the stack is split.</summary>
-        /// <returns>If the input was handled or consumed.</returns>
         protected override EInputHandled OpenSplitMenu()
         {
             try
@@ -117,12 +116,10 @@ namespace StackEverythingRedux.MenuHandlers
 
             // Create the split menu
             SplitMenu = new StackSplitMenu(OnStackAmountReceived, StackAmount);
-
             return EInputHandled.Consumed;
         }
 
         /// <summary>Callback given to the split menu that is invoked when a value is submitted.</summary>
-        /// <param name="s">The user input.</param>
         protected override void OnStackAmountReceived(string s)
         {
             // Store amount
@@ -132,10 +129,21 @@ namespace StackEverythingRedux.MenuHandlers
                 {
                     if (!HookCallbacks())
                     {
-                        throw new Exception("Failed to hook callbacks");
+                        // failed to hook, bail out cleanly
+                        base.OnStackAmountReceived(s);
+                        return;
                     }
 
-                    NativeMenu.receiveRightClick(ClickItemLocation.X, ClickItemLocation.Y);
+                    try
+                    {
+                        // Drive the vanilla right-click path so the menu sets heldItem etc.
+                        NativeMenu?.receiveRightClick(ClickItemLocation.X, ClickItemLocation.Y);
+                    }
+                    finally
+                    {
+                        // Ensure we never leave callbacks dangling in case of exceptions or external menu swaps.
+                        RestoreNativeCallbacks();
+                    }
                 }
                 else
                 {
@@ -147,26 +155,18 @@ namespace StackEverythingRedux.MenuHandlers
         }
 
         /// <summary>Callback override for when an item in the inventory is selected.</summary>
-        /// <param name="item">Item that was selected.</param>
-        /// <param name="who">The player that selected it.</param>
         private void OnItemSelect(Item item, SFarmer who)
         {
             MoveItems(item, who, PlayerInventoryMenu, OriginalItemSelectCallback);
         }
 
         /// <summary>Callback override for when an item in the shop is selected.</summary>
-        /// <param name="item">Item that was selected.</param>
-        /// <param name="who">The player that selected it.</param>
         private void OnItemGrab(Item item, SFarmer who)
         {
             MoveItems(item, who, ItemsToGrabMenu, OriginalItemGrabCallback);
         }
 
         /// <summary>Updates the number of items being held by the player based on what was input to the split menu.</summary>
-        /// <param name="item">The selected item.</param>
-        /// <param name="who">The player that selected the items.</param>
-        /// <param name="inventoryMenu">Either the player inventory or the shop inventory.</param>
-        /// <param name="callback">The native callback to invoke to continue with the regular behavior after we've modified the stack.</param>
         private void MoveItems(Item item, SFarmer who, InventoryMenu inventoryMenu, ItemGrabMenu.behaviorOnItemSelect callback)
         {
             Debug.Assert(StackAmount > 0);
@@ -175,9 +175,6 @@ namespace StackEverythingRedux.MenuHandlers
             Item heldItem = HeldItem;
             if (heldItem != null)
             {
-                // update held item stack and item stack
-                //int numCurrentlyHeld = heldItem.Stack; // How many we're actually holding.
-                //int numInPile = this.HoverItem.Stack + item.Stack;
                 int wantToHold = Math.Min(TotalItems, StackAmount);
 
                 HoverItem.Stack = TotalItems - wantToHold;
@@ -186,7 +183,7 @@ namespace StackEverythingRedux.MenuHandlers
                 item.Stack = wantToHold;
 
                 // Remove the empty item from the inventory
-                if (HoverItem.Stack <= 0)
+                if (HoverItem.Stack <= 0 && inventoryMenu != null)
                 {
                     int index = inventoryMenu.actualInventory.IndexOf(HoverItem);
                     if (index > -1)
@@ -196,9 +193,10 @@ namespace StackEverythingRedux.MenuHandlers
                 }
             }
 
+            // restore before invoking the original callback to avoid keeping hooks if callback changes menus
             RestoreNativeCallbacks();
 
-            // Update stack to the amount set from OnStackAmountReceived
+            // Continue vanilla flow
             callback?.Invoke(item, who);
         }
 
@@ -215,37 +213,37 @@ namespace StackEverythingRedux.MenuHandlers
         }
 
         /// <summary>Replaces the native shop callbacks with our own so we can intercept the operation to modify the amount.</summary>
-        /// <returns>If it was hooked successfully.</returns>
         private bool HookCallbacks()
         {
-            if (CallbacksHooked)
+            // If already hooked for this exact menu, do nothing.
+            if (CallbacksHooked && ReferenceEquals(HookedMenu, NativeMenu))
             {
                 return true;
             }
 
             try
             {
-                // Replace the delegates with our own
-                StardewModdingAPI.IReflectedField<ItemGrabMenu.behaviorOnItemSelect> itemSelectCallbackField = StackEverythingRedux.Reflection.GetField<ItemGrabMenu.behaviorOnItemSelect>(NativeMenu, "behaviorFunction");
-                //var itemGrabCallbackField = typeof(ItemGrabMenu).GetField("behaviorOnItemGrab");
+                IReflectedField<ItemGrabMenu.behaviorOnItemSelect> itemSelectCallbackField = StackEverythingRedux.Reflection
+                    .GetField<ItemGrabMenu.behaviorOnItemSelect>(NativeMenu, "behaviorFunction");
 
                 OriginalItemGrabCallback = NativeMenu.behaviorOnItemGrab;
                 OriginalItemSelectCallback = itemSelectCallbackField.GetValue();
 
                 NativeMenu.behaviorOnItemGrab = new ItemGrabMenu.behaviorOnItemSelect(OnItemGrab);
-                itemSelectCallbackField.SetValue(OnItemSelect);
+                itemSelectCallbackField.SetValue(new ItemGrabMenu.behaviorOnItemSelect(OnItemSelect));
 
+                HookedMenu = NativeMenu;
                 CallbacksHooked = true;
+                return true;
             }
             catch (Exception e)
             {
                 Log.Error($"[{nameof(ItemGrabMenuHandler)}.{nameof(HookCallbacks)}] Failed to hook ItemGrabMenu callbacks:\n{e}");
                 return false;
             }
-            return true;
         }
 
-        /// <summary>Sets the callbacks back to the native ones.</summary>
+        /// <summary>Sets the callbacks back to the native ones (idempotent).</summary>
         private void RestoreNativeCallbacks()
         {
             if (!CallbacksHooked)
@@ -255,17 +253,36 @@ namespace StackEverythingRedux.MenuHandlers
 
             try
             {
-                StardewModdingAPI.IReflectedField<ItemGrabMenu.behaviorOnItemSelect> itemSelectCallbackField = StackEverythingRedux.Reflection.GetField<ItemGrabMenu.behaviorOnItemSelect>(NativeMenu, "behaviorFunction");
-                //var itemGrabCallbackField = typeof(ItemGrabMenu).GetField("behaviorOnItemGrab");
+                ItemGrabMenu menu = HookedMenu ?? NativeMenu;
+                if (menu != null)
+                {
+                    IReflectedField<ItemGrabMenu.behaviorOnItemSelect> itemSelectCallbackField = StackEverythingRedux.Reflection
+                        .GetField<ItemGrabMenu.behaviorOnItemSelect>(menu, "behaviorFunction");
 
-                itemSelectCallbackField.SetValue(OriginalItemSelectCallback);
-                NativeMenu.behaviorOnItemGrab = OriginalItemGrabCallback;
-
-                CallbacksHooked = false;
+                    itemSelectCallbackField.SetValue(OriginalItemSelectCallback);
+                    menu.behaviorOnItemGrab = OriginalItemGrabCallback;
+                }
             }
             catch (Exception e)
             {
                 Log.Error($"[{nameof(ItemGrabMenuHandler)}.{nameof(RestoreNativeCallbacks)}] Failed to restore native callbacks:\n{e}");
+            }
+            finally
+            {
+                CallbacksHooked = false;
+                HookedMenu = null;
+                OriginalItemSelectCallback = null;
+                OriginalItemGrabCallback = null;
+            }
+        }
+
+        /// <summary>Auto-cleanup when another mod replaces/closes the chest menu.</summary>
+        private void OnMenuChanged(object sender, MenuChangedEventArgs e)
+        {
+            // If hooks are active and the hooked menu is no longer the current one, unhook safely.
+            if (CallbacksHooked && !ReferenceEquals(e.NewMenu, HookedMenu))
+            {
+                RestoreNativeCallbacks();
             }
         }
     }

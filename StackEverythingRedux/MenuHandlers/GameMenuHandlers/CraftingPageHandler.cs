@@ -97,22 +97,10 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
             }
 
             int count = Math.Min(amount, MaxAmount);
-            ISoundBank origSoundBank = Game1.soundBank;
+
             for (int i = 0; i < count; ++i)
             {
-                // Only play sound for the very first RightClick, or else the sound will mix together and sounds horrible
-                if (i > 0)
-                {
-                    Game1.soundBank = null;
-                }
-
                 MenuPage.receiveRightClick(ClickItemLocation.X, ClickItemLocation.Y, playSound: i == 0);
-                Game1.soundBank = origSoundBank;
-                // NOTE: This nullify-then-restore tactic is needed because as of SDV 1.5.4, CraftingPage.receiveRightClick actually
-                //       *ignores* the playSound parameter; it's supposed to pass that parameter to CraftingPage.clickCraftingRecipe,
-                //       but it doesn't. So the same sound gets layered one atop another with a slight shift, resulting in an overly
-                //       loud and very distorted blip.
-                //       If this oversight is fixed in a future patch, we can remove the nullify-and-restore lines.
             }
         }
     }

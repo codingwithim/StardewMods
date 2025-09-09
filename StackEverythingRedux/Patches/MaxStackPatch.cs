@@ -53,6 +53,10 @@ namespace StackEverythingRedux.Patches
                 {
                     return;
                 }
+                else if (StaticConfig.NoStackQualifiedIds != null && StaticConfig.NoStackQualifiedIds.Contains(__instance.QualifiedItemId))
+                {
+                    return;
+                }
 
                 __result = StackEverythingRedux.Config.MaxStackingNumber;
 
