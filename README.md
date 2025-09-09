@@ -6,23 +6,24 @@ Welcome to my collection of SMAPI mods for Stardew Valley! Each mod enhances you
 
 ### Active Mods
 
-* **[Real Clock](./RealClock)**  
-  Enhances time progression by updating the in-game clock every minute instead of every 10 minutes. Enjoy a more dynamic and immersive Stardew Valley experience! 🕒🌱
-  
-  **Download from [Nexus](https://www.nexusmods.com/stardewvalley/mods/21726)**
+-   **[Real Clock](./RealClock)**
+    Enhances time progression by updating the in-game clock every minute instead of every 10 minutes. Enjoy a more dynamic and immersive Stardew Valley experience! 🕒🌱
 
-* **[Stack Everything Redux](./StackEverythingRedux)**  
-  Enhance item stacking functionality with Furniture, tackle, and Wallpapers stacked up to 999! Streamline your storage and organization in Stardew Valley. 📦🌱
-  
-  **Download from [Nexus](https://www.nexusmods.com/stardewvalley/mods/22381)**
+    **Download from [Nexus](https://www.nexusmods.com/stardewvalley/mods/21726)**
+
+-   **[Stack Everything Redux](./StackEverythingRedux)**
+    Supercharges your inventory management! Stack normally unstackable items such as **Furniture**, **Tackles**, and **Wallpapers**, customize the maximum stack size beyond 999, and use **SHIFT+Right Click** to split stacks, craft, cook, or shop with precision. Includes improved tackle durability handling, decorative cactus fixes, Better Chests compatibility, and Spanish (es) localization. 📦🌱
+
+    **Download from [Nexus](https://www.nexusmods.com/stardewvalley/mods/22381)**
 
 ### Planned Mods
-* (Future mods will be listed here as they are developed.)
+
+-   (Future mods will be listed here as they are developed.)
 
 ## How to Install
 
 1. **Download:** Click on one of the mod download links above and download the zip file.
-2. **Extract:** Extract the mod files into your Stardew Valley mods directory.
+2. **Extract:** Extract the mod files into your Stardew Valley `Mods` directory.
 3. **Enable:** Ensure the mod is enabled in your game's mod manager.
 
 ## Feedback & Support
@@ -35,6 +36,7 @@ These mods are open source under the [MIT License](LICENSE). Feel free to use, m
 
 ## Special Thanks
 
-- **Adverserath:** For inspiring the Real Clock Mod.
-- **CatCattyCat:** For the original Stack Everything Mod.
-- **SMAPI Community:** For their support and contributions to Stardew Valley modding. 🌱✨
+-   **Adverserath:** For inspiring the Real Clock Mod.
+-   **CatCattyCat:** For the original Stack Everything Mod.
+-   **pepoluan:** For the Stack Split Redux Mod.
+-   **SMAPI Community:** For their support and contributions to Stardew Valley modding. 🌱✨
